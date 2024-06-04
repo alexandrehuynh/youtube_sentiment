@@ -1,33 +1,46 @@
 import os
-from utils import get_video_comments, preprocess_comments
-from models import train_sentiment_model, predict_sentiment
+from dotenv import load_dotenv
 
-# Get the API key from the environment variable
-api_key = os.environ.get('YOUTUBE_API_KEY')
+# Load environment variables from .env file
+load_dotenv('./.env')
+
+import json
+from google.oauth2 import service_account
+from google.auth.transport.requests import Request
+from googleapiclient.discovery import build
+
+def authenticate_youtube():
+    # Get the client secrets file path from the environment variable
+    SERVICE_ACCOUNT_FILE = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+
+    # Define the scopes required
+    SCOPES = ['https://www.googleapis.com/auth/youtube.force-ssl']
+
+    # Create credentials
+    credentials = service_account.Credentials.from_service_account_file(
+        SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+
+    # Refresh the token if necessary
+    credentials.refresh(Request())
+
+    # Build the service
+    youtube = build('youtube', 'v3', credentials=credentials)
+    return youtube
 
 def main():
-    video_url = input("Enter the YouTube video URL: ")
-    video_id = video_url.split('=')[-1]
+    # Authenticate and build the YouTube service
+    youtube = authenticate_youtube()
 
-    comments = get_video_comments(video_id, api_key)
-    preprocessed_comments = preprocess_comments(comments)
-
-    # You'll need to provide labeled data for training
-    # For example:
-    labels = [0, 2, 1, 0, 2, 1, 0, 2, ...]  # 0 for negative, 1 for neutral, 2 for positive
-
-    model, vectorizer = train_sentiment_model(preprocessed_comments, labels)
-
-    # Predict sentiment for new comments
-    new_comments_vectors = vectorizer.transform(preprocessed_comments)
-    predicted_sentiments = predict_sentiment(model, new_comments_vectors)
-
-    # Display the results
-    for comment, sentiment in zip(comments, predicted_sentiments):
-        if sentiment == 0:
-            print(f"Negative: {comment}")
-        else:
-            print(f"Positive: {comment}")
+    # Your existing code to interact with YouTube API
+    video_id = 'FzAxtfdDHnY'
+    request = youtube.commentThreads().list(
+        part="snippet",
+        videoId=video_id,
+        maxResults=100,
+        textFormat="plainText"
+    )
+    response = request.execute()
+    print(json.dumps(response, indent=4))
 
 if __name__ == "__main__":
     main()

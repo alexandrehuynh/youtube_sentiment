@@ -14,6 +14,9 @@ def get_video_comments(video_id, api_key, max_comments=100):
             textFormat='plainText'
         ).execute()
 
+        print("Response:")
+        print(response)  # Print the entire response
+
         for item in response['items']:
             comment = item['snippet']['topLevelComment']['snippet']['textDisplay']
             comments.append(comment)
