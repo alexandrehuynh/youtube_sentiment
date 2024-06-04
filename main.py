@@ -1,30 +1,24 @@
 import os
 from dotenv import load_dotenv
+import json
+import googleapiclient.discovery
 
 # Load environment variables from .env file
 load_dotenv('./.env')
 
-import json
-from google.oauth2 import service_account
-from google.auth.transport.requests import Request
-from googleapiclient.discovery import build
-
 def authenticate_youtube():
-    # Get the client secrets file path from the environment variable
-    SERVICE_ACCOUNT_FILE = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
-
-    # Define the scopes required
-    SCOPES = ['https://www.googleapis.com/auth/youtube.force-ssl']
-
-    # Create credentials
-    credentials = service_account.Credentials.from_service_account_file(
-        SERVICE_ACCOUNT_FILE, scopes=SCOPES)
-
-    # Refresh the token if necessary
-    credentials.refresh(Request())
-
-    # Build the service
-    youtube = build('youtube', 'v3', credentials=credentials)
+    # Get the API key from the environment variable
+    api_key = os.getenv('YOUTUBE_API_KEY')
+    
+    # Print the API key to ensure it's being set
+    print(f'API Key: {api_key}')
+    
+    if api_key is None:
+        raise ValueError("The environment variable YOUTUBE_API_KEY is not set.")
+    
+    # Build the service using the API key
+    youtube = googleapiclient.discovery.build(
+        'youtube', 'v3', developerKey=api_key)
     return youtube
 
 def main():
