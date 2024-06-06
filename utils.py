@@ -2,22 +2,22 @@ import re
 from googleapiclient.discovery import build
 import nltk
 from nltk.corpus import stopwords
+from urllib.parse import urlparse, parse_qs
 
 def extract_video_id(url):
-    # Regular expression pattern to match the video ID
-    pattern = r'(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=)?(?:embed\/)?(?:v\/)?(?:shorts\/)?(?:\S+)'
-    
-    # Find the video ID in the URL
-    match = re.match(pattern, url)
-    
-    if match:
-        # Extract the video ID from the matched URL
-        video_id = match.group().split('/')[-1]
-        video_id = video_id.split('?')[0]
-        video_id = video_id.split('&')[0]
-        return video_id
-    else:
-        return None
+    parsed_url = urlparse(url)
+    if 'youtube' in parsed_url.hostname:
+        if parsed_url.path == '/watch':
+            video_id = parse_qs(parsed_url.query).get('v', None)
+            if video_id:
+                return video_id[0]
+        elif parsed_url.path.startswith('/embed/'):
+            return parsed_url.path.split('/')[2]
+        elif parsed_url.path.startswith('/v/'):
+            return parsed_url.path.split('/')[2]
+    elif 'youtu.be' in parsed_url.hostname:
+        return parsed_url.path[1:]
+    return None
 
 def get_video_comments(video_id, api_key, max_comments=100):
     youtube = build('youtube', 'v3', developerKey=api_key)
