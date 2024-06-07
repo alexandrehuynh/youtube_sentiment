@@ -1,21 +1,63 @@
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.naive_bayes import MultinomialNB
+from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report
 import joblib
 import os
+from datetime import datetime
+
+def list_csv_files(directory='datasets'):
+    files = [f for f in os.listdir(directory) if f.endswith('.csv')]
+    return files
+
+def select_csv_file(directory='datasets'):
+    files = list_csv_files(directory)
+    if not files:
+        raise FileNotFoundError("No CSV files found in the specified directory.")
+
+    print("Select a CSV file to train the model:")
+    for idx, file in enumerate(files, start=1):
+        print(f"{idx}. {file}")
+
+    choice = int(input("Enter the number of the CSV file you want to use: "))
+    if choice < 1 or choice > len(files):
+        raise ValueError("Invalid choice")
+    
+    return os.path.join(directory, files[choice - 1])
+
+def select_model():
+    models = ['Naive Bayes', 'Logistic Regression']
+    print("Select a model to train:")
+    for idx, model in enumerate(models, start=1):
+        print(f"{idx}. {model}")
+    
+    choice = int(input("Enter the number of the model you want to train: "))
+    if choice < 1 or choice > len(models):
+        raise ValueError("Invalid choice")
+    
+    return models[choice - 1]
 
 def load_data(filename):
     data = pd.read_csv(filename)
     return data['comment'], data['sentiment']
 
-def train_sentiment_model(comments, labels):
+def train_sentiment_model(comments, labels, model_type):
     vectorizer = TfidfVectorizer()
     X = vectorizer.fit_transform(comments)
     X_train, X_test, y_train, y_test = train_test_split(X, labels, test_size=0.2, random_state=42)
 
-    model = MultinomialNB()
+    if len(set(y_train)) < 2 or len(set(y_test)) < 2:
+        raise ValueError("The dataset contains only one class. Please use a dataset with multiple classes.")
+
+    if model_type == 'Naive Bayes':
+        model = MultinomialNB()
+    elif model_type == 'Logistic Regression':
+        model = LogisticRegression()
+    else:
+        raise ValueError("Invalid model type selected")
+
     model.fit(X_train, y_train)
 
     y_pred = model.predict(X_test)
@@ -29,14 +71,22 @@ def save_model(model, vectorizer, directory='models'):
     if not os.path.exists(directory):
         os.makedirs(directory)
     
-    model_path = f"{directory}/sentiment_model.pkl"
-    vectorizer_path = f"{directory}/vectorizer.pkl"
+    # Generate a unique filename
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    model_path = f"{directory}/sentiment_model_{timestamp}.pkl"
+    vectorizer_path = f"{directory}/vectorizer_{timestamp}.pkl"
     
     joblib.dump(model, model_path)
     joblib.dump(vectorizer, vectorizer_path)
     print(f"Model and vectorizer saved to {model_path} and {vectorizer_path}")
 
 if __name__ == "__main__":
-    comments, sentiments = load_data('./comments/Craig Jones vs Gabi Garcia press conference highlights! (FUNNY!)_with_sentiments.csv')
-    model, vectorizer = train_sentiment_model(comments, sentiments)
-    save_model(model, vectorizer)
+    directory = input("Enter the directory where CSV files are located (default is 'datasets'): ") or 'datasets'
+    csv_file = select_csv_file(directory)
+    comments, sentiments = load_data(csv_file)
+    selected_model = select_model()
+    try:
+        model, vectorizer = train_sentiment_model(comments, sentiments, selected_model)
+        save_model(model, vectorizer)
+    except ValueError as e:
+        print(e)
